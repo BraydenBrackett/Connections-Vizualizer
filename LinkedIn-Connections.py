@@ -1,6 +1,7 @@
 import pandas as pd
 import tkinter as tk
 from tkinter import filedialog
+import os
 
 class LinkedIn_Connections:
     def __init__(self, master):
@@ -43,9 +44,10 @@ class LinkedIn_Connections:
             try:
                 dfs = []
                 for file_path in self.file_paths:
-                    df = pd.read_csv(file_path)
+                    print(os.path.splitext(os.path.basename(file_path)))
+                    df = pd.read_csv(file_path, skiprows=3)
 
-                    df['SourceFile'] = file_path #indicates the source file, will need to be adjusted to show names later
+                    df['SourceFile'] = file_path #name of linkedin data is currently derrived from the existing files name (hence name files as people)
                     dfs.append(df)
 
                 combined_df = pd.concat(dfs, ignore_index=True)
@@ -59,7 +61,7 @@ class LinkedIn_Connections:
 
 # Creating the main window and running it
 root = tk.Tk()
-root.geometry("400x300")
+root.geometry("800x600")
 app = LinkedIn_Connections(root)
 
 root.mainloop()
