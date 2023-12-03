@@ -7,8 +7,6 @@
 
 
 import pandas as pd
-import janitor
-import datetime
 
 from IPython.core.display import display, HTML
 from pyvis import network as net
@@ -31,11 +29,11 @@ df.head()
 
 """## Simple EDA"""
 
-df['company'].value_counts().head(10).plot(kind="barh").invert_yaxis();
+df['company'].value_counts().head(10).plot(kind="barh").invert_yaxis()
 
-df['position'].value_counts().head(10).plot(kind="barh").invert_yaxis();
+df['position'].value_counts().head(10).plot(kind="barh").invert_yaxis()
 
-df['connected_on'].hist(xrot=35, bins=15);
+df['connected_on'].hist(xrot=35, bins=15)
 
 """### Remove freelance and self-employed titles"""
 
