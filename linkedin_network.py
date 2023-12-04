@@ -161,4 +161,3 @@ nt.hrepulsion()
 # more customization https://tinyurl.com/yf5lvvdm
 nt.show('position_graph.html')
 display(HTML('position_graph.html'))
-
