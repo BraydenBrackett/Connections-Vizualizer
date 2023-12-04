@@ -1,2 +1,7 @@
 
 company_graph.html
+lib/vis-9.1.2/vis-network.min.js
+lib/vis-9.1.2/vis-network.css
+lib/tom-select/tom-select.css
+lib/tom-select/tom-select.complete.min.js
+lib/bindings/utils.js

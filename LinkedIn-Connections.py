@@ -78,21 +78,15 @@ class LinkedIn_Connections:
 
         # Apply the mapping to create a new 'Simplified Company' column
         df['Simplified Company'] = df['Company'].map(company_mapping)
-
-        # Display the cleaned DataFrame
         print(df[['Company', 'Simplified Company']])
 
-
+    # Create GUI 
     def generate_dataframe(self):
         if self.file_paths:
             try:
                 dfs = []
                 for file_path in self.file_paths:
-                    #print(os.path.splitext(os.path.basename(file_path)))
-                    df = pd.read_csv(file_path, skiprows=3)
-
-                    df['SourceFile'] = file_path #name of linkedin data is currently derrived from the existing files name (hence name files as people)
-                    dfs.append(df)
+                    dfs.append(file_path)
 
                 combined_df = pd.concat(dfs, ignore_index=True)
                 #self.simplify_companies(combined_df) - JUST ignore this for the timing being
@@ -100,7 +94,7 @@ class LinkedIn_Connections:
             except Exception as e:
                 print("Error opening the files with pandas:", e)
 
-    #def create_graph(self):
+    def create_graph(self):
         #TODO: generate graphs here
 
 # Creating the main window and running it
