@@ -161,45 +161,6 @@ for idx in range(len(file_names)):
 # generate the graph
 nt = net.Network(height='850px', width='1800px', bgcolor="white", font_color='black', notebook= True, cdn_resources='in_line')
 nt.from_nx(g)
-
 nt.hrepulsion()
-
-nt.show('company_graph.html')
-display(HTML('company_graph.html'))
-
-
-
-# initialize graph
-g = nx.Graph()
-g.add_node('You') # intialize yourself as central
-
-# use iterrows tp iterate through the data frame
-
-for index in range(len(file_names)):
-  df_company_reduced = data_company[index]
-  df_position_reduced = data_positions[index]
-  df = data_df[index]
-
-  for _, row in df_position_reduced.iterrows():
-
-    count = f"{row['count']}"
-    position= row['position']
-
-    if position in repeated_positions:
-        #print("FOUND")
-        g.add_node(position, size=count, color= repeated_color_code, title=count)
-    else:
-        g.add_node(position, size=count, color= colors[index], title=count)
-    
-    g.add_edge('You', position, color='grey')
-
-# generate the graph
-nt = net.Network(height='700px', width='700px', bgcolor="white", font_color='black', notebook= True, cdn_resources='in_line')
-nt.from_nx(g)
-nt.hrepulsion()
-# more customization https://tinyurl.com/yf5lvvdm
-nt.show('position_graph.html')
-display(HTML('position_graph.html'))
-
-
+nt.write_html('company_graph.html')
 webbrowser.open('company_graph.html', new=2)
