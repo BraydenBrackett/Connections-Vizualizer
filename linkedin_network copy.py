@@ -20,7 +20,42 @@ colors = ["#0046FF", "#FF0000", "#F0FF00", "#49FF00"]
 repeated_color_code = "#898989"
 data_company = [[]] * len(file_names)
 data_positions = [[]] * len(file_names)
+companies_by_person = [[]] * len(file_names)
 data_df = [[]] * len(file_names)
+
+combined_dfs = []
+
+for index in range(len(file_names)):
+  df = pd.read_csv(file_names[index], skiprows=2)
+
+  df = (
+    df
+    .clean_names() # remove spacing and capitalization
+    .drop(columns=['first_name', 'last_name', 'email_address']) # drop for privacy
+    .dropna(subset=['company', 'position']) # drop missing values in company and position
+    .to_datetime('connected_on', format='%d %b %Y')
+  )
+  #df.head()
+
+  """## Simple EDA"""
+
+  df['company'].value_counts().head(10).plot(kind="barh").invert_yaxis();
+
+  df['position'].value_counts().head(10).plot(kind="barh").invert_yaxis();
+
+  df['connected_on'].hist(xrot=35, bins=15);
+
+  #df['user_id'] = file_idx
+
+  """### Remove freelance and self-employed titles"""
+
+  pattern = "freelance|self-employed"
+  df = df[~df['company'].str.contains(pattern, case=False)]
+
+  df['user_id'] = index
+
+  combined_dfs.append(df)
+
 
 for file_idx in range(len(file_names)):
   df_ori = pd.read_csv(file_names[file_idx], skiprows=2)
@@ -42,7 +77,7 @@ for file_idx in range(len(file_names)):
 
   df['connected_on'].hist(xrot=35, bins=15);
 
-  df['user_id'] = file_idx
+  #df['user_id'] = file_idx
 
   """### Remove freelance and self-employed titles"""
 
@@ -50,6 +85,8 @@ for file_idx in range(len(file_names)):
   df = df[~df['company'].str.contains(pattern, case=False)]
 
   """## Aggregate sum of connections for companies"""
+
+  companies_by_person[file_idx] = list(df['company'].unique())
 
   df_company = df['company'].value_counts().reset_index()
   df_company.columns = ['company', 'count']
@@ -66,10 +103,7 @@ for file_idx in range(len(file_names)):
   df_position = df_position.sort_values(by="count", ascending=False)
   #df_position.head(10)
 
-
-
   ## Creating the network
-
 
   df_company_reduced = df_company.loc[df_company['count']>=3]
 
@@ -80,7 +114,11 @@ for file_idx in range(len(file_names)):
   data_company[file_idx] = df_company_reduced
   data_positions[file_idx] = df_position_reduced
 
+combined_dfs = pd.concat(combined_dfs, ignore_index=True)
+#print(companies_by_person)
 #print(data_positions)
+
+
 seen = set()
 repeated_company = set()
 for l in data_company:
@@ -130,25 +168,31 @@ for idx in range(len(file_names)):
 
     for position in positions_li:
 
-      size_df = size_df = len(df[(df['position'] == position) & (df['company'] == company)])
+      size_df = len(df[(df['position'] == position) & (df['company'] == company)])
       
       if size_df >= 2:
         comb_name = str(position) + " - " + str(company)
-        """ 
-        matched = 0
+        
+        matches = []
         match_id = 0
-        for file_idx in range(len(file_names)):
-          size_df = len(df[(df['position'] == position) & (df['company'] == company) & (df['user_id'] == file_idx)])
-          if size_df > 0:
-            matched += 1
-            match_id = file_idx
+        for person in range(len(file_names)):
+
+          cnt = len(combined_dfs[(combined_dfs['position'] == position) & (combined_dfs['company'] == company) & (combined_dfs['user_id'] == person)])
+
+          if cnt > 0:
+
+            match_id = person
+            matches.append(person)
           
-        print(matched)
-        if matched >= 2:
+        #if company == "Hewlett Packard Enterprise":
+        #  print("Company: " + company + ", Position: " + position + ", Matches: " + str(matches) + ", USER: " + str(match_id))
+        if len(matches) >= 2:
           g.add_node(comb_name, size= size_df, title=hover_info, color=repeated_color_code, label = position)
         else:
-          g.add_node(comb_name, size= size_df, title=hover_info, color=colors[match_id], label = position) """
-        g.add_node(comb_name, size= size_df*2, title=hover_info, color="#1ADCD9", label = position)
+          g.add_node(comb_name, size= size_df, title=hover_info, color=colors[match_id], label = position) 
+        
+
+        #g.add_node(comb_name, size= size_df*2, title=hover_info, color="#1ADCD9", label = position)
         g.add_edge(company, comb_name, color='grey')
 
     if company in repeated_company:
