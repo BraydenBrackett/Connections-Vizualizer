@@ -6,6 +6,7 @@
 ## To Run
 - Can use test data to try out program
 - Or use your data from LinkedIn.com - Settings/Privacy > Data Privacy > Get a Copy of Your Data > Click connections > Request Archive
+- linkedin_network.py is the **main** file
 - Once code is downloaded and has been run:
   - Add/Remove files (file names will be names of nodes in legend)
   - Node threshold determines the number of connections that must be at a job or position to show up in the network graph
