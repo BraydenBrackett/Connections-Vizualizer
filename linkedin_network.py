@@ -1,11 +1,6 @@
-
-#!pip install pyjanitor pyvis --quiet
-#!pip install --upgrade ipykernel
-
 import pandas as pd
 import tkinter as tk
 from tkinter import filedialog
-import recordlinkage
 from pyvis import network as net
 import networkx as nx
 import webbrowser
@@ -15,55 +10,46 @@ import matplotlib as mlt
 import matplotlib.pyplot as plt
 import os
 
-#function for simplifing down companies
-def simplify_companies(self, df):
-    # Create an indexer and compare the company names using string similarity
-    indexer = recordlinkage.Index()
-    indexer.full()
-    candidates = indexer.index(df)
-
-    compare_cl = recordlinkage.Compare()
-
-    # String similarity comparison
-    compare_cl.string('Company', 'Company', method='jarowinkler', threshold=0.8)
-
-    # Compute the similarity scores
-    features = compare_cl.compute(candidates, df)
-
-    # Define a threshold for considering matches
-    threshold = 0.8
-
-    # Get pairs of similar records based on the threshold
-    matches = features[features.sum(axis=1) > threshold]
-
-    # Create a dictionary to map original company names to simplified names
-    company_mapping = {}
-
-    # Update the mapping with the pairs of similar records
-    for idx1, idx2 in matches.index:
-        name1 = df.loc[idx1, 'Company']
-        name2 = df.loc[idx2, 'Company']
-        
-        if name1 not in company_mapping:
-            company_mapping[name1] = name1
-        
-        if name2 not in company_mapping:
-            company_mapping[name2] = name1
-
-    # Apply the mapping to create a new 'Simplified Company' column
-    df['Simplified Company'] = df['Company'].map(company_mapping)
-    print(df[['Company', 'Simplified Company']])
-
 def generate_graph(file_names, threshold):
-
-  #self.simplify_companies(combined_df) - JUST ignore this for the timing being
   
   colors = ["#0046FF", "#FF0000", "#F0FF00", "#49FF00"]
 
   repeated_color_code = "#898989"
   data_company = [[]] * len(file_names)
   data_positions = [[]] * len(file_names)
+  companies_by_person = [[]] * len(file_names)
   data_df = [[]] * len(file_names)
+
+  combined_dfs = []
+
+  for index in range(len(file_names)):
+    df = pd.read_csv(file_names[index], skiprows=2)
+
+    df = (
+      df
+      .clean_names() # remove spacing and capitalization
+      .drop(columns=['first_name', 'last_name', 'email_address']) # drop for privacy
+      .dropna(subset=['company', 'position']) # drop missing values in company and position
+      .to_datetime('connected_on', format='%d %b %Y')
+    )
+
+    """## Simple EDA"""
+
+    df['company'].value_counts().head(10).plot(kind="barh").invert_yaxis()
+
+    df['position'].value_counts().head(10).plot(kind="barh").invert_yaxis()
+
+    df['connected_on'].hist(xrot=35, bins=15)
+
+    """### Remove freelance and self-employed titles"""
+
+    pattern = "freelance|self-employed"
+    df = df[~df['company'].str.contains(pattern, case=False)]
+
+    df['user_id'] = index
+
+    combined_dfs.append(df)
+
 
   for file_idx in range(len(file_names)):
     df_ori = pd.read_csv(file_names[file_idx], skiprows=2)
@@ -75,7 +61,6 @@ def generate_graph(file_names, threshold):
       .dropna(subset=['company', 'position']) # drop missing values in company and position
       .to_datetime('connected_on', format='%d %b %Y')
     )
-    #df.head()
 
     """## Simple EDA"""
 
@@ -85,7 +70,6 @@ def generate_graph(file_names, threshold):
 
     df['connected_on'].hist(xrot=35, bins=15)
 
-    df['user_id'] = file_idx
 
     """### Remove freelance and self-employed titles"""
 
@@ -94,20 +78,18 @@ def generate_graph(file_names, threshold):
 
     """## Aggregate sum of connections for companies"""
 
+    companies_by_person[file_idx] = list(df['company'].unique())
+
     df_company = df['company'].value_counts().reset_index()
     df_company.columns = ['company', 'count']
     df_company = df_company.sort_values(by="count", ascending=False)
-    #df_company.head(10)
 
     """## Aggregate sum of connections for positions"""
 
     df_position = df['position'].value_counts().reset_index()
     df_position.columns = ['position', 'count']
-    #print(df_position)
     df_position['company'] = df['company']
-    #df_position.columns = ['position', 'company', 'count']
     df_position = df_position.sort_values(by="count", ascending=False)
-    #df_position.head(10)
 
     ## Creating the network
     df_company_reduced = df_company.loc[df_company['count']>=3]
@@ -119,7 +101,8 @@ def generate_graph(file_names, threshold):
     data_company[file_idx] = df_company_reduced
     data_positions[file_idx] = df_position_reduced
 
-  #print(data_positions)
+  combined_dfs = pd.concat(combined_dfs, ignore_index=True)
+
   seen = set()
   repeated_company = set()
   for l in data_company:
@@ -138,21 +121,24 @@ def generate_graph(file_names, threshold):
       else:
         seen.add(i)
 
+
+  # initialize graph
   g = nx.Graph()
   g.add_node('You') # intialize yourself as central
 
+  # use iterrows tp iterate through the data frame
   for idx in range(len(file_names)):
     df_company_reduced = data_company[idx]
     df_position_reduced = data_positions[idx]
     df = data_df[idx]
 
     for _, row in df_company_reduced.iterrows():
-      #print("HI")
+
       # store company name and count
       company = row['company']
       count = row['count']
 
-      title = f"<b>{company}</b> - {count}"
+      title = f"<b>{company}</b> – {count}"
       positions = set([x for x in df[company == df['company']]['position']])
       positions_li = positions
       positions = ''.join('<li>{}</li>'.format(x) for x in positions)
@@ -162,25 +148,28 @@ def generate_graph(file_names, threshold):
 
       for position in positions_li:
 
-        size_df = size_df = len(df[(df['position'] == position) & (df['company'] == company)])
+        size_df = len(df[(df['position'] == position) & (df['company'] == company)])
         
-        if size_df >= int(threshold):
+        if size_df >= 2:
           comb_name = str(position) + " - " + str(company)
-          """ 
-          matched = 0
+          
+          matches = []
           match_id = 0
-          for file_idx in range(len(file_names)):
-            size_df = len(df[(df['position'] == position) & (df['company'] == company) & (df['user_id'] == file_idx)])
-            if size_df > 0:
-              matched += 1
-              match_id = file_idx
+          for person in range(len(file_names)):
+
+            cnt = len(combined_dfs[(combined_dfs['position'] == position) & (combined_dfs['company'] == company) & (combined_dfs['user_id'] == person)])
+
+            if cnt > 0:
+
+              match_id = person
+              matches.append(person)
             
-          print(matched)
-          if matched >= 2:
+          if len(matches) >= 2:
             g.add_node(comb_name, size= size_df, title=hover_info, color=repeated_color_code, label = position)
           else:
-            g.add_node(comb_name, size= size_df, title=hover_info, color=colors[match_id], label = position) """
-          g.add_node(comb_name, size= size_df*2, title=hover_info, color="#1ADCD9", label = position)
+            g.add_node(comb_name, size= size_df, title=hover_info, color=colors[match_id], label = position) 
+          
+
           g.add_edge(company, comb_name, color='grey')
 
       if company in repeated_company:
@@ -189,10 +178,9 @@ def generate_graph(file_names, threshold):
         g.add_node(company, size=count*2, title=hover_info, color= colors[idx])
       g.add_edge('You', company, color='grey')
 
-  # Extract filenames without extensions
   names = [os.path.splitext(os.path.basename(x))[0] for x in file_names]
-
   mlt.rcParams['toolbar'] = 'None'
+  plt.close('all')
   fig, ax = plt.subplots(figsize=(2.5, 2))
   legend_handles = [plt.Line2D([0], [0], marker='o', color='w', label=label, markerfacecolor=color, markersize=10) for label, color in zip(names, colors)]
   ax.legend(handles=legend_handles, loc='upper right')
@@ -207,8 +195,6 @@ def generate_graph(file_names, threshold):
   nt.hrepulsion(160, 0, 300, 0.01, 0.09)
   nt.write_html('company_graph.html')
   webbrowser.open('company_graph.html', new=1)
-
-  plt.close(1)
   plt.show()
 
 
